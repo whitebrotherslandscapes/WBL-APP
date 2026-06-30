@@ -508,6 +508,87 @@
 
   .stack > * + * { margin-top: 12px; }
   .hidden { display: none !important; }
+
+  /* Split client rows (tap area + edit button) */
+  .client-row {
+    display: flex;
+    align-items: stretch;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .client-row + .client-row { margin-top: 8px; }
+  .client-row-tap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 12px 14px 16px;
+    background: transparent;
+    border: none;
+    text-align: left;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    cursor: pointer;
+    min-width: 0;
+    -webkit-appearance: none;
+    transition: background 0.15s;
+  }
+  .client-row-tap:active { background: #F5F4EF; }
+  .client-row-edit {
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--border);
+    padding: 0 16px;
+    cursor: pointer;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    -webkit-appearance: none;
+    min-width: 52px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .client-row-edit:active { background: #F5F4EF; color: var(--accent); }
+
+  /* Dates section in new invoice form */
+  .dates-section { margin-bottom: 14px; }
+  .dates-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 0 4px;
+  }
+  .dates-header .field-label { margin-bottom: 0; }
+  .link-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-right: -8px;
+    font-family: inherit;
+    -webkit-appearance: none;
+  }
+  .link-btn:active { opacity: 0.7; }
+  .dates-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .dates-grid .field { margin-bottom: 0; }
+  /* iOS date inputs are quirky — force consistent height & font */
+  .dates-grid input[type="date"] {
+    min-height: 50px;
+    font-family: inherit;
+    line-height: 1.2;
+  }
 </style>
 </head>
 <body>
@@ -527,6 +608,7 @@ const STORAGE = {
   invoices: 'wbl:invoices',
   counter: 'wbl:counter',
   seeded: 'wbl:seeded',
+  dataVersion: 'wbl:dataVersion',
 };
 
 const DEFAULT_COMPANY = {
@@ -543,19 +625,26 @@ const SEED_CLIENTS = [
   {
     name: '1Force Fitness',
     address: 'Unit 11 Beach Close\nNewhaven\nBN9 0BY',
-    email: '',
+    email: 'info@1force.fitness',
   },
   {
     name: 'Rachel Logan',
     address: '101 Denton Road\nNewhaven\nBN9 0QE',
-    email: '',
+    email: 'thomasdavidlogan@gmail.com',
   },
   {
     name: 'Mark Ayling',
     address: '59 Hurdis Rd\nBN25 2ST',
     email: 'mark.ayling1@btinternet.com',
   },
+  {
+    name: 'Spencer White',
+    address: '49 Hill Farm Way\nSouthwick\nBN42 4YG',
+    email: 'spinwhite@outlook.com',
+  },
 ];
+
+const CURRENT_DATA_VERSION = 1;
 
 const state = {
   view: 'home',
@@ -563,7 +652,7 @@ const state = {
   clients: {},
   invoices: {},
   counter: 1,
-  draft: { clientId: null, amount: '', description: '' },
+  draft: { clientId: null, amount: '', description: '', dateIssued: '', dateDue: '' },
   view_invoice_number: null,
 };
 
@@ -607,7 +696,43 @@ function loadAll() {
     }
     storageSet(STORAGE.clients, state.clients);
     storageSet(STORAGE.seeded, true);
+    storageSet(STORAGE.dataVersion, CURRENT_DATA_VERSION);
+  } else {
+    // Existing data — top up with any new defaults via migration
+    migrateData();
   }
+}
+
+function migrateData() {
+  const version = storageGet(STORAGE.dataVersion, 0);
+  let modified = false;
+
+  const findClientByName = (name) => {
+    const lower = name.toLowerCase().trim();
+    return Object.values(state.clients).find(c => (c.name || '').toLowerCase().trim() === lower);
+  };
+
+  if (version < 1) {
+    // v0 -> v1: add Spencer White if missing, add emails to 1Force and Rachel if missing
+    if (!findClientByName('Spencer White')) {
+      const id = uid();
+      state.clients[id] = {
+        id,
+        name: 'Spencer White',
+        address: '49 Hill Farm Way\nSouthwick\nBN42 4YG',
+        email: 'spinwhite@outlook.com',
+        createdAt: Date.now(),
+      };
+      modified = true;
+    }
+    const force = findClientByName('1Force Fitness');
+    if (force && !force.email) { force.email = 'info@1force.fitness'; modified = true; }
+    const rachel = findClientByName('Rachel Logan');
+    if (rachel && !rachel.email) { rachel.email = 'thomasdavidlogan@gmail.com'; modified = true; }
+  }
+
+  if (modified) storageSet(STORAGE.clients, state.clients);
+  storageSet(STORAGE.dataVersion, CURRENT_DATA_VERSION);
 }
 
 /* ---------- Utilities ---------- */
@@ -658,6 +783,8 @@ const ICON = {
   gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   plus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
   arrow: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+  edit: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  mail: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>',
 };
 
 /* ---------- Toast ---------- */
@@ -676,7 +803,7 @@ function go(view, opts = {}) {
   state.view = view;
   if (opts.draft) state.draft = { ...state.draft, ...opts.draft };
   if (opts.viewInvoiceNumber !== undefined) state.view_invoice_number = opts.viewInvoiceNumber;
-  if (opts.resetDraft) state.draft = { clientId: null, amount: '', description: '' };
+  if (opts.resetDraft) state.draft = { clientId: null, amount: '', description: '', dateIssued: '', dateDue: '' };
   render();
 }
 
@@ -736,13 +863,16 @@ function renderHome() {
           Add a client to save their address and start invoicing them in one tap.
         </div>
       ` : clientList.map(c => `
-        <button class="row" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
-          <div class="row-main">
-            <div class="row-title">${escapeHTML(c.name)}</div>
-            ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n')[0])}</div>` : ''}
-          </div>
-          <div class="row-trail">${ICON.chevron}</div>
-        </button>
+        <div class="client-row">
+          <button class="client-row-tap" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
+            <div class="row-main">
+              <div class="row-title">${escapeHTML(c.name)}</div>
+              ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n')[0])}</div>` : ''}
+            </div>
+            <div class="row-trail">${ICON.chevron}</div>
+          </button>
+          <button class="client-row-edit" data-action="edit-client" data-id="${escapeHTML(c.id)}" aria-label="Edit ${escapeHTML(c.name)}">${ICON.edit}</button>
+        </div>
       `).join('')}
     </div>
 
@@ -791,13 +921,16 @@ function renderPickClient() {
       ${clientList.length === 0 ? `
         <div class="empty"><strong>No clients yet</strong>Add your first one above.</div>
       ` : clientList.map(c => `
-        <button class="row" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
-          <div class="row-main">
-            <div class="row-title">${escapeHTML(c.name)}</div>
-            ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n').join(', '))}</div>` : ''}
-          </div>
-          <div class="row-trail">${ICON.chevron}</div>
-        </button>
+        <div class="client-row">
+          <button class="client-row-tap" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
+            <div class="row-main">
+              <div class="row-title">${escapeHTML(c.name)}</div>
+              ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n').join(', '))}</div>` : ''}
+            </div>
+            <div class="row-trail">${ICON.chevron}</div>
+          </button>
+          <button class="client-row-edit" data-action="edit-client" data-id="${escapeHTML(c.id)}" aria-label="Edit ${escapeHTML(c.name)}">${ICON.edit}</button>
+        </div>
       `).join('')}
     </div>
   `;
@@ -861,8 +994,11 @@ function renderEditClient() {
 
 function renderNewInvoice() {
   const client = state.draft.clientId ? state.clients[state.draft.clientId] : null;
-  const issued = todayISO();
-  const due = addDaysISO(issued, 30);
+  // Initialise dates if not already set
+  if (!state.draft.dateIssued) state.draft.dateIssued = todayISO();
+  if (!state.draft.dateDue) state.draft.dateDue = addDaysISO(state.draft.dateIssued, 30);
+  const issued = state.draft.dateIssued;
+  const due = state.draft.dateDue;
   const amount = parseFloat(state.draft.amount) || 0;
   const number = nextInvoiceNumber();
 
@@ -871,7 +1007,7 @@ function renderNewInvoice() {
       <button class="back-btn" data-action="home">${ICON.back} Back</button>
     </div>
     <h1 class="view-title">New invoice</h1>
-    <p class="view-subtitle">${escapeHTML(number)} · Issued ${escapeHTML(formatDate(issued))} · Due ${escapeHTML(formatDate(due))}</p>
+    <p class="view-subtitle">${escapeHTML(number)}</p>
 
     ${client ? `
       <div class="selected-client">
@@ -907,10 +1043,27 @@ function renderNewInvoice() {
         <textarea id="desc" name="description" rows="2" autocapitalize="sentences" placeholder="e.g. Grass cut + waste removal">${escapeHTML(state.draft.description)}</textarea>
       </div>
 
+      <div class="dates-section">
+        <div class="dates-header">
+          <span class="field-label">Dates</span>
+          <button type="button" class="link-btn" data-action="reset-dates">Today + 30 days</button>
+        </div>
+        <div class="dates-grid">
+          <div class="field">
+            <label class="field-label" for="d-issued">Issued</label>
+            <input id="d-issued" type="date" value="${escapeHTML(issued)}" />
+          </div>
+          <div class="field">
+            <label class="field-label" for="d-due">Due</label>
+            <input id="d-due" type="date" value="${escapeHTML(due)}" />
+          </div>
+        </div>
+      </div>
+
       <div class="summary-card">
         <div class="summary-row"><span>Invoice</span><span class="val" style="font-family: var(--font-mono); font-size: 13px;">${escapeHTML(number)}</span></div>
-        <div class="summary-row"><span>Issued</span><span class="val">${escapeHTML(formatDate(issued))}</span></div>
-        <div class="summary-row"><span>Due</span><span class="val">${escapeHTML(formatDate(due))}</span></div>
+        <div class="summary-row"><span>Issued</span><span class="val" id="summary-issued">${escapeHTML(formatDate(issued))}</span></div>
+        <div class="summary-row"><span>Due</span><span class="val" id="summary-due">${escapeHTML(formatDate(due))}</span></div>
         <div class="summary-row total"><span>Total</span><span class="val" id="summary-total">${formatGBP(amount)}</span></div>
       </div>
 
@@ -980,6 +1133,7 @@ function renderInvoiceView() {
 
     <div class="stack">
       <button class="btn btn-primary" data-action="share-pdf" data-number="${escapeHTML(inv.number)}">Share PDF</button>
+      <button class="btn btn-secondary" data-action="email-invoice" data-number="${escapeHTML(inv.number)}">Email client</button>
       <button class="btn btn-secondary" data-action="download-pdf" data-number="${escapeHTML(inv.number)}">Open / download PDF</button>
       <button class="btn btn-danger" data-action="delete-invoice" data-number="${escapeHTML(inv.number)}">Delete this invoice</button>
     </div>
@@ -1052,11 +1206,30 @@ function attachListeners() {
     const amt = document.getElementById('amt');
     const desc = document.getElementById('desc');
     const total = document.getElementById('summary-total');
+    const dIssued = document.getElementById('d-issued');
+    const dDue = document.getElementById('d-due');
+    const sIssued = document.getElementById('summary-issued');
+    const sDue = document.getElementById('summary-due');
     if (amt) amt.addEventListener('input', () => {
       state.draft.amount = amt.value;
       total.textContent = formatGBP(parseFloat(amt.value) || 0);
     });
     if (desc) desc.addEventListener('input', () => { state.draft.description = desc.value; });
+    if (dIssued) dIssued.addEventListener('change', () => {
+      if (!dIssued.value) return;
+      state.draft.dateIssued = dIssued.value;
+      // Auto-shift due date to +30 days from new issued date
+      const newDue = addDaysISO(dIssued.value, 30);
+      state.draft.dateDue = newDue;
+      if (dDue) dDue.value = newDue;
+      if (sIssued) sIssued.textContent = formatDate(dIssued.value);
+      if (sDue) sDue.textContent = formatDate(newDue);
+    });
+    if (dDue) dDue.addEventListener('change', () => {
+      if (!dDue.value) return;
+      state.draft.dateDue = dDue.value;
+      if (sDue) sDue.textContent = formatDate(dDue.value);
+    });
     invForm.addEventListener('submit', onSubmitInvoice);
   }
 
@@ -1116,6 +1289,25 @@ function onAction(e) {
     case 'download-pdf':
       handleDownloadPDF(t.dataset.number);
       break;
+    case 'email-invoice':
+      handleEmailInvoice(t.dataset.number);
+      break;
+    case 'reset-dates': {
+      const today = todayISO();
+      const newDue = addDaysISO(today, 30);
+      state.draft.dateIssued = today;
+      state.draft.dateDue = newDue;
+      const dIssued = document.getElementById('d-issued');
+      const dDue = document.getElementById('d-due');
+      const sIssued = document.getElementById('summary-issued');
+      const sDue = document.getElementById('summary-due');
+      if (dIssued) dIssued.value = today;
+      if (dDue) dDue.value = newDue;
+      if (sIssued) sIssued.textContent = formatDate(today);
+      if (sDue) sDue.textContent = formatDate(newDue);
+      toast('Dates reset');
+      break;
+    }
     case 'delete-invoice': {
       const num = t.dataset.number;
       if (!confirm(`Delete invoice ${num}? This cannot be undone.`)) return;
@@ -1127,12 +1319,12 @@ function onAction(e) {
     }
     case 'reset-app': {
       if (!confirm('Clear ALL saved data — clients, invoices and settings? This cannot be undone.')) return;
-      [STORAGE.company, STORAGE.clients, STORAGE.invoices, STORAGE.counter, STORAGE.seeded].forEach(storageDelete);
+      [STORAGE.company, STORAGE.clients, STORAGE.invoices, STORAGE.counter, STORAGE.seeded, STORAGE.dataVersion].forEach(storageDelete);
       state.company = { ...DEFAULT_COMPANY };
       state.clients = {};
       state.invoices = {};
       state.counter = 1;
-      state.draft = { clientId: null, amount: '', description: '' };
+      state.draft = { clientId: null, amount: '', description: '', dateIssued: '', dateDue: '' };
       storageSet(STORAGE.company, state.company);
       toast('All data cleared');
       go('home');
@@ -1180,8 +1372,8 @@ function onSubmitInvoice(e) {
 
   const client = state.clients[state.draft.clientId];
   const number = nextInvoiceNumber();
-  const dateIssued = todayISO();
-  const dateDue = addDaysISO(dateIssued, 30);
+  const dateIssued = state.draft.dateIssued || todayISO();
+  const dateDue = state.draft.dateDue || addDaysISO(dateIssued, 30);
 
   const inv = {
     number,
@@ -1201,7 +1393,7 @@ function onSubmitInvoice(e) {
   storageSet(STORAGE.invoices, state.invoices);
   storageSet(STORAGE.counter, state.counter);
 
-  state.draft = { clientId: null, amount: '', description: '' };
+  state.draft = { clientId: null, amount: '', description: '', dateIssued: '', dateDue: '' };
   go('invoiceView', { viewInvoiceNumber: number });
   toast('Invoice ready');
 }
@@ -1437,6 +1629,47 @@ async function handleDownloadPDF(number) {
   const blob = doc.output('blob');
   const filename = pdfFilename(inv);
   triggerDownload(blob, filename);
+}
+
+function handleEmailInvoice(number) {
+  const inv = state.invoices[number];
+  if (!inv) return;
+  const co = state.company;
+  // Prefer the client's current saved email (in case they updated it after the invoice was made)
+  const client = state.clients[inv.clientId];
+  const email = (client && client.email) || inv.clientEmail || '';
+
+  // Use first word of client name as greeting (works for "Mark Ayling" and "1Force Fitness" alike)
+  const greetingName = (inv.clientName || '').trim().split(/\s+/)[0] || 'there';
+
+  const subject = `Invoice ${inv.number} — ${co.name}`;
+  const bodyLines = [
+    `Hi ${greetingName},`,
+    ``,
+    `Please find your invoice details below.`,
+    ``,
+    `Invoice:  ${inv.number}`,
+    `Issued:   ${formatDate(inv.dateIssued)}`,
+    `Due:      ${formatDate(inv.dateDue)}`,
+    `Amount:   ${formatGBP(inv.amount)}`,
+    ``,
+    `For: ${inv.description}`,
+    ``,
+    `Payment details`,
+    `Payable to: ${co.payableTo}`,
+    `Sort code:  ${co.sortCode}`,
+    `Account:    ${co.account}`,
+    ``,
+    `Many thanks,`,
+    co.name,
+    co.phone,
+  ];
+  const body = bodyLines.join('\n');
+
+  const url = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  // Use location.href so iOS opens Mail composer reliably
+  window.location.href = url;
+  if (!email) toast('Mail opened — no email saved for this client');
 }
 
 function triggerDownload(blob, filename) {
