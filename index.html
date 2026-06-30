@@ -589,6 +589,34 @@
     font-family: inherit;
     line-height: 1.2;
   }
+
+  /* Task chips for the job summary field */
+  .task-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .task-chip {
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--ink);
+    cursor: pointer;
+    -webkit-appearance: none;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .task-chip:active { transform: scale(0.97); }
+  .task-chip.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
 </style>
 </head>
 <body>
@@ -645,6 +673,20 @@ const SEED_CLIENTS = [
 ];
 
 const CURRENT_DATA_VERSION = 1;
+
+// Common landscaping tasks for quick-add chips on the new invoice form
+const JOB_TASKS = [
+  'Grass cutting',
+  'Hedge cutting',
+  'Weeding',
+  'Waste removal',
+  'Upkeep',
+  'Strimming',
+  'Pruning',
+  'Leaf clearance',
+  'Patio cleaning',
+  'Planting',
+];
 
 const state = {
   view: 'home',
@@ -1040,7 +1082,16 @@ function renderNewInvoice() {
       </div>
       <div class="field">
         <label class="field-label" for="desc">Job summary</label>
-        <textarea id="desc" name="description" rows="2" autocapitalize="sentences" placeholder="e.g. Grass cut + waste removal">${escapeHTML(state.draft.description)}</textarea>
+        <div class="task-chips">
+          ${JOB_TASKS.map(task => {
+            const isActive = (state.draft.description || '')
+              .split(/\s*\+\s*/)
+              .map(p => p.trim().toLowerCase())
+              .includes(task.toLowerCase());
+            return `<button type="button" class="task-chip${isActive ? ' active' : ''}" data-action="toggle-task" data-task="${escapeHTML(task)}">${escapeHTML(task)}</button>`;
+          }).join('')}
+        </div>
+        <textarea id="desc" name="description" rows="2" autocapitalize="sentences" placeholder="Tap above to add tasks, or type your own">${escapeHTML(state.draft.description)}</textarea>
       </div>
 
       <div class="dates-section">
@@ -1214,7 +1265,10 @@ function attachListeners() {
       state.draft.amount = amt.value;
       total.textContent = formatGBP(parseFloat(amt.value) || 0);
     });
-    if (desc) desc.addEventListener('input', () => { state.draft.description = desc.value; });
+    if (desc) desc.addEventListener('input', () => {
+      state.draft.description = desc.value;
+      updateChipStates();
+    });
     if (dIssued) dIssued.addEventListener('change', () => {
       if (!dIssued.value) return;
       state.draft.dateIssued = dIssued.value;
@@ -1306,6 +1360,10 @@ function onAction(e) {
       if (sIssued) sIssued.textContent = formatDate(today);
       if (sDue) sDue.textContent = formatDate(newDue);
       toast('Dates reset');
+      break;
+    }
+    case 'toggle-task': {
+      toggleTaskInDescription(t.dataset.task);
       break;
     }
     case 'delete-invoice': {
@@ -1412,6 +1470,36 @@ function onSubmitSettings(e) {
   storageSet(STORAGE.company, state.company);
   toast('Settings saved');
   go('home');
+}
+
+/* ---------- Task chips for job summary ---------- */
+
+function toggleTaskInDescription(task) {
+  if (!task) return;
+  const current = state.draft.description || '';
+  const parts = current.split(/\s*\+\s*/).map(p => p.trim()).filter(Boolean);
+  const idx = parts.findIndex(p => p.toLowerCase() === task.toLowerCase());
+  if (idx >= 0) {
+    parts.splice(idx, 1);
+  } else {
+    parts.push(task);
+  }
+  const newDesc = parts.join(' + ');
+  state.draft.description = newDesc;
+  const desc = document.getElementById('desc');
+  if (desc) desc.value = newDesc;
+  updateChipStates();
+}
+
+function updateChipStates() {
+  const parts = (state.draft.description || '')
+    .split(/\s*\+\s*/)
+    .map(p => p.trim().toLowerCase())
+    .filter(Boolean);
+  document.querySelectorAll('.task-chip').forEach(chip => {
+    const task = (chip.dataset.task || '').toLowerCase();
+    chip.classList.toggle('active', parts.includes(task));
+  });
 }
 
 /* ---------- PDF generation ---------- */
