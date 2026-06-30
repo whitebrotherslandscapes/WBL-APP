@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="WBL Invoices" />
+<meta name="theme-color" content="#FAFAF7" />
+<title>WhiteBrothersLandscapes — Invoices</title>
+<script async src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #FAFAF7;
+    --surface: #FFFFFF;
+    --ink: #1A1A1A;
+    --ink-muted: #6B6B6B;
+    --ink-faint: #9A9A95;
+    --border: #ECEAE3;
+    --border-strong: #D4D2CC;
+    --accent: #2D4A3A;
+    --accent-soft: #EEF3EE;
+    --danger: #B0413E;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-y: contain;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  button { font-family: inherit; }
+
+  .app {
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 12px 16px 40px;
+    padding-top: calc(12px + env(safe-area-inset-top));
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px 22px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .brand-mark {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-soft);
+  }
+  .icon-btn {
+    width: 40px; height: 40px;
+    border: none;
+    background: transparent;
+    border-radius: 10px;
+    color: var(--ink-muted);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s;
+  }
+  .icon-btn:active { background: var(--border); }
+
+  .back-bar {
+    display: flex; align-items: center;
+    padding: 4px 0 12px;
+  }
+  .back-btn {
+    display: inline-flex; align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 8px 12px 8px 4px;
+    margin-left: -4px;
+  }
+
+  .view-title {
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 4px 4px 6px;
+    line-height: 1.15;
+  }
+  .view-subtitle {
+    color: var(--ink-muted);
+    font-size: 14px;
+    margin: 0 4px 22px;
+  }
+  .section { margin-bottom: 28px; }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+  .section-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    font-weight: 600;
+  }
+  .section-action {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-right: -8px;
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .row {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    text-align: left;
+    color: var(--ink);
+    -webkit-appearance: none;
+    cursor: pointer;
+    font-size: 16px;
+    font-family: inherit;
+    transition: background 0.15s;
+  }
+  .row + .row { margin-top: 8px; }
+  .row:active { background: #F5F4EF; }
+  .row-main { min-width: 0; flex: 1; }
+  .row-title { font-weight: 500; font-size: 16px; color: var(--ink); }
+  .row-meta { font-size: 13px; color: var(--ink-faint); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-trail {
+    display: flex; align-items: center; gap: 10px;
+    color: var(--ink-faint);
+    margin-left: 12px;
+  }
+  .row-amount {
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .cta {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--accent);
+    color: white;
+    padding: 18px 20px;
+    border-radius: var(--radius);
+    border: none;
+    width: 100%;
+    font-size: 17px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-appearance: none;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  }
+  .cta:active { opacity: 0.9; }
+
+  .btn {
+    width: 100%;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: none;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    -webkit-appearance: none;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:active { opacity: 0.88; }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary {
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--border-strong);
+  }
+  .btn-secondary:active { background: var(--border); }
+  .btn-danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--border);
+  }
+
+  .field { margin-bottom: 14px; }
+  .field-label {
+    display: block;
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin: 0 0 6px 4px;
+    font-weight: 500;
+  }
+  .field input,
+  .field textarea {
+    width: 100%;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    background: var(--surface);
+    -webkit-appearance: none;
+    transition: border-color 0.15s;
+  }
+  .field input:focus,
+  .field textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field textarea { resize: vertical; min-height: 84px; line-height: 1.4; }
+  .field-help {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin: 6px 4px 0;
+  }
+
+  .field-amount { position: relative; }
+  .field-amount .currency {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-muted);
+    font-size: 20px;
+    pointer-events: none;
+    font-weight: 500;
+  }
+  .field-amount input {
+    padding-left: 36px;
+    font-size: 22px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  .selected-client {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    background: var(--accent-soft);
+    border: 1px solid #DDE7DD;
+    border-radius: var(--radius);
+    margin-bottom: 14px;
+  }
+  .selected-client-info { min-width: 0; }
+  .selected-client-name {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--ink);
+    margin-bottom: 2px;
+  }
+  .selected-client-addr {
+    font-size: 13px;
+    color: var(--ink-muted);
+    white-space: pre-line;
+    line-height: 1.35;
+  }
+  .selected-client-change {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px;
+    margin: -6px -6px -6px 12px;
+    flex-shrink: 0;
+  }
+
+  .summary-card {
+    margin-top: 8px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .summary-row {
+    display: flex; justify-content: space-between;
+    font-size: 14px;
+    padding: 6px 0;
+    color: var(--ink-muted);
+  }
+  .summary-row.total {
+    border-top: 1px solid var(--border);
+    margin-top: 6px;
+    padding-top: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .summary-row .val { font-variant-numeric: tabular-nums; color: var(--ink); }
+  .summary-row.total .val { font-size: 17px; }
+
+  .empty {
+    text-align: center;
+    color: var(--ink-muted);
+    font-size: 14px;
+    padding: 28px 16px;
+    background: var(--surface);
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    line-height: 1.5;
+  }
+  .empty strong { color: var(--ink); display: block; margin-bottom: 4px; font-weight: 600; }
+
+  .preview-wrap {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 22px 24px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .preview-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 18px;
+    gap: 12px;
+  }
+  .preview-co {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+  .preview-contact {
+    font-size: 11px;
+    color: var(--ink-muted);
+    line-height: 1.5;
+  }
+  .preview-right { text-align: right; flex-shrink: 0; }
+  .preview-eyebrow {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .preview-num {
+    font-family: var(--font-mono);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 8px;
+  }
+  .preview-dates {
+    font-size: 11px;
+    color: var(--ink-muted);
+    line-height: 1.6;
+  }
+  .preview-dates .lbl { color: var(--ink-faint); margin-right: 6px; }
+  .preview-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 0;
+  }
+  .preview-billto-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .preview-client-name { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+  .preview-client-addr { white-space: pre-line; color: var(--ink-muted); font-size: 12px; }
+  .preview-table-head {
+    display: flex; justify-content: space-between;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .preview-line {
+    display: flex; justify-content: space-between;
+    align-items: start;
+    gap: 14px;
+    padding: 6px 0;
+  }
+  .preview-desc { color: var(--ink); flex: 1; }
+  .preview-amount { font-variant-numeric: tabular-nums; font-weight: 500; }
+  .preview-total {
+    display: flex; justify-content: space-between;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--ink);
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .preview-pay {
+    margin-top: 20px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #FAFAF7;
+  }
+  .preview-pay-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--ink-faint);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .preview-pay-row {
+    display: flex;
+    font-size: 12px;
+    padding: 3px 0;
+  }
+  .preview-pay-row .k { color: var(--ink-muted); width: 90px; flex-shrink: 0; }
+  .preview-pay-row .v { color: var(--ink); font-family: var(--font-mono); }
+  .preview-pay-row .v-text { font-family: inherit; font-weight: 500; }
+
+  .toast {
+    position: fixed;
+    bottom: calc(28px + env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--ink);
+    color: white;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 100;
+    animation: toast-in 0.2s ease;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+    max-width: calc(100vw - 40px);
+    text-align: center;
+  }
+  @keyframes toast-in {
+    from { opacity: 0; transform: translate(-50%, 10px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }
+
+  .loader {
+    display: flex; justify-content: center; align-items: center;
+    padding: 60px 20px;
+    color: var(--ink-faint);
+    font-size: 14px;
+  }
+
+  .settings-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .settings-field { padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .settings-field:last-child { border-bottom: none; }
+  .settings-field label {
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+    display: block;
+    font-weight: 600;
+  }
+  .settings-field input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: 16px;
+    color: var(--ink);
+    padding: 4px 0;
+    -webkit-appearance: none;
+  }
+  .settings-field input:focus { outline: none; }
+
+  .stack > * + * { margin-top: 12px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app" class="app"><div class="loader">Loading…</div></div>
+<div id="toast-host"></div>
+
+<script>
+/* ============================================================
+   WhiteBrothersLandscapes — Invoice Generator
+   Self-contained. Uses localStorage. Works on any HTTPS host
+   (GitHub Pages, Netlify, etc) and as a saved Home Screen app.
+   ============================================================ */
+
+const STORAGE = {
+  company: 'wbl:company',
+  clients: 'wbl:clients',
+  invoices: 'wbl:invoices',
+  counter: 'wbl:counter',
+  seeded: 'wbl:seeded',
+};
+
+const DEFAULT_COMPANY = {
+  name: 'WhiteBrothersLandscapes',
+  email: 'whitebrotherslandscapes@gmail.com',
+  phone: '07718370333',
+  payableTo: 'J WHITE',
+  sortCode: '20-26-82',
+  account: '23715078',
+};
+
+// Pre-seeded clients (loaded on first launch only)
+const SEED_CLIENTS = [
+  {
+    name: '1Force Fitness',
+    address: 'Unit 11 Beach Close\nNewhaven\nBN9 0BY',
+    email: '',
+  },
+  {
+    name: 'Rachel Logan',
+    address: '101 Denton Road\nNewhaven\nBN9 0QE',
+    email: '',
+  },
+  {
+    name: 'Mark Ayling',
+    address: '59 Hurdis Rd\nBN25 2ST',
+    email: 'mark.ayling1@btinternet.com',
+  },
+];
+
+const state = {
+  view: 'home',
+  company: { ...DEFAULT_COMPANY },
+  clients: {},
+  invoices: {},
+  counter: 1,
+  draft: { clientId: null, amount: '', description: '' },
+  view_invoice_number: null,
+};
+
+/* ---------- Storage (localStorage) ---------- */
+
+function storageGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw == null) return fallback;
+    try { return JSON.parse(raw); } catch { return raw; }
+  } catch { return fallback; }
+}
+function storageSet(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); return true; }
+  catch (e) { console.error('localStorage.setItem failed', key, e); toast('Could not save.'); return false; }
+}
+function storageDelete(key) {
+  try { localStorage.removeItem(key); } catch {}
+}
+
+function loadAll() {
+  const co = storageGet(STORAGE.company, null);
+  if (!co) {
+    state.company = { ...DEFAULT_COMPANY };
+    storageSet(STORAGE.company, state.company);
+  } else {
+    state.company = { ...DEFAULT_COMPANY, ...co };
+  }
+
+  state.clients = storageGet(STORAGE.clients, {});
+  state.invoices = storageGet(STORAGE.invoices, {});
+  const ct = storageGet(STORAGE.counter, 1);
+  state.counter = typeof ct === 'number' ? ct : 1;
+
+  // Seed clients on first run
+  const seeded = storageGet(STORAGE.seeded, false);
+  if (!seeded && Object.keys(state.clients).length === 0) {
+    for (const c of SEED_CLIENTS) {
+      const id = uid();
+      state.clients[id] = { id, name: c.name, address: c.address, email: c.email || '', createdAt: Date.now() };
+    }
+    storageSet(STORAGE.clients, state.clients);
+    storageSet(STORAGE.seeded, true);
+  }
+}
+
+/* ---------- Utilities ---------- */
+
+function uid() { return 'c_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function pad3(n) { return String(n).padStart(3, '0'); }
+function nextInvoiceNumber() { return 'WBL-' + pad3(state.counter); }
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function addDaysISO(iso, days) {
+  const d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+function formatDateShort(iso) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+function formatGBP(n) {
+  const num = typeof n === 'string' ? parseFloat(n) : n;
+  if (!isFinite(num)) return '£0.00';
+  return num.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+}
+function escapeHTML(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ---------- Icons ---------- */
+
+const ICON = {
+  chevron: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>',
+  back: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>',
+  gear: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  plus: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  arrow: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>',
+};
+
+/* ---------- Toast ---------- */
+
+let toastTimer = null;
+function toast(msg) {
+  const host = document.getElementById('toast-host');
+  host.innerHTML = `<div class="toast">${escapeHTML(msg)}</div>`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { host.innerHTML = ''; }, 2400);
+}
+
+/* ---------- Navigation ---------- */
+
+function go(view, opts = {}) {
+  state.view = view;
+  if (opts.draft) state.draft = { ...state.draft, ...opts.draft };
+  if (opts.viewInvoiceNumber !== undefined) state.view_invoice_number = opts.viewInvoiceNumber;
+  if (opts.resetDraft) state.draft = { clientId: null, amount: '', description: '' };
+  render();
+}
+
+/* ---------- Renderers ---------- */
+
+function render() {
+  const root = document.getElementById('app');
+  let html = '';
+  switch (state.view) {
+    case 'home':         html = renderHome();         break;
+    case 'newInvoice':   html = renderNewInvoice();   break;
+    case 'pickClient':   html = renderPickClient();   break;
+    case 'newClient':    html = renderNewClient();    break;
+    case 'editClient':   html = renderEditClient();   break;
+    case 'invoiceView':  html = renderInvoiceView();  break;
+    case 'settings':     html = renderSettings();     break;
+    default:             html = renderHome();
+  }
+  root.innerHTML = html;
+  attachListeners();
+  window.scrollTo({ top: 0, behavior: 'instant' in window ? 'instant' : 'auto' });
+}
+
+function renderHome() {
+  const clientList = Object.values(state.clients).sort((a, b) => a.name.localeCompare(b.name));
+  const recentInvoices = Object.values(state.invoices)
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 6);
+
+  return `
+    <div class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        WhiteBrothersLandscapes
+      </div>
+      <button class="icon-btn" data-action="settings" aria-label="Settings">${ICON.gear}</button>
+    </div>
+
+    <h1 class="view-title">Invoices</h1>
+    <p class="view-subtitle">Pick a client to start a new invoice, or add a new one.</p>
+
+    <div class="section">
+      <button class="cta" data-action="new-invoice-pick">
+        <span>New invoice</span>
+        ${ICON.arrow}
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-label">Clients</span>
+        <button class="section-action" data-action="add-client">${ICON.plus} Add</button>
+      </div>
+      ${clientList.length === 0 ? `
+        <div class="empty">
+          <strong>No clients yet</strong>
+          Add a client to save their address and start invoicing them in one tap.
+        </div>
+      ` : clientList.map(c => `
+        <button class="row" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
+          <div class="row-main">
+            <div class="row-title">${escapeHTML(c.name)}</div>
+            ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n')[0])}</div>` : ''}
+          </div>
+          <div class="row-trail">${ICON.chevron}</div>
+        </button>
+      `).join('')}
+    </div>
+
+    ${recentInvoices.length > 0 ? `
+      <div class="section">
+        <div class="section-head">
+          <span class="section-label">Recent</span>
+        </div>
+        ${recentInvoices.map(inv => `
+          <button class="row" data-action="view-invoice" data-number="${escapeHTML(inv.number)}">
+            <div class="row-main">
+              <div class="row-title">${escapeHTML(inv.clientName)}</div>
+              <div class="row-meta">${escapeHTML(inv.number)} · ${escapeHTML(formatDateShort(inv.dateIssued))}</div>
+            </div>
+            <div class="row-trail">
+              <span class="row-amount">${formatGBP(inv.amount)}</span>
+              ${ICON.chevron}
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
+}
+
+function renderPickClient() {
+  const clientList = Object.values(state.clients).sort((a, b) => a.name.localeCompare(b.name));
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="home">${ICON.back} Back</button>
+    </div>
+    <h1 class="view-title">Choose client</h1>
+    <p class="view-subtitle">Pick who this invoice is for, or add a new client.</p>
+
+    <div class="section">
+      <button class="cta" data-action="add-client">
+        <span>Add new client</span>
+        ${ICON.plus}
+      </button>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <span class="section-label">Existing clients</span>
+      </div>
+      ${clientList.length === 0 ? `
+        <div class="empty"><strong>No clients yet</strong>Add your first one above.</div>
+      ` : clientList.map(c => `
+        <button class="row" data-action="new-for-client" data-id="${escapeHTML(c.id)}">
+          <div class="row-main">
+            <div class="row-title">${escapeHTML(c.name)}</div>
+            ${c.address ? `<div class="row-meta">${escapeHTML(c.address.split('\n').join(', '))}</div>` : ''}
+          </div>
+          <div class="row-trail">${ICON.chevron}</div>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderNewClient() {
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="back-from-new-client">${ICON.back} Back</button>
+    </div>
+    <h1 class="view-title">New client</h1>
+    <p class="view-subtitle">Save their details once. Future invoices for them are one tap away.</p>
+
+    <form id="client-form" class="stack" autocomplete="off">
+      <div class="field">
+        <label class="field-label" for="cf-name">Client name</label>
+        <input id="cf-name" name="name" type="text" autocapitalize="words" autocorrect="off" required placeholder="e.g. 1Force Fitness" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="cf-address">Address</label>
+        <textarea id="cf-address" name="address" rows="4" autocapitalize="words" placeholder="Building / street&#10;Town&#10;Postcode"></textarea>
+        <p class="field-help">One line per row, the way it should appear on the invoice.</p>
+      </div>
+      <div class="field">
+        <label class="field-label" for="cf-email">Email (optional)</label>
+        <input id="cf-email" name="email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="name@example.com" />
+        <p class="field-help">Used when emailing invoices. Doesn't appear on the invoice itself.</p>
+      </div>
+      <button type="submit" class="btn btn-primary">Save client</button>
+    </form>
+  `;
+}
+
+function renderEditClient() {
+  const c = state.clients[state.draft.editingClientId];
+  if (!c) { go('home'); return ''; }
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="new-invoice">${ICON.back} Back</button>
+    </div>
+    <h1 class="view-title">Edit client</h1>
+
+    <form id="client-edit-form" class="stack" autocomplete="off">
+      <div class="field">
+        <label class="field-label" for="cf-name">Client name</label>
+        <input id="cf-name" name="name" type="text" autocapitalize="words" autocorrect="off" required value="${escapeHTML(c.name)}" />
+      </div>
+      <div class="field">
+        <label class="field-label" for="cf-address">Address</label>
+        <textarea id="cf-address" name="address" rows="4" autocapitalize="words">${escapeHTML(c.address || '')}</textarea>
+      </div>
+      <div class="field">
+        <label class="field-label" for="cf-email">Email (optional)</label>
+        <input id="cf-email" name="email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" value="${escapeHTML(c.email || '')}" />
+      </div>
+      <button type="submit" class="btn btn-primary">Save changes</button>
+      <button type="button" class="btn btn-danger" data-action="delete-client" data-id="${escapeHTML(c.id)}">Delete client</button>
+    </form>
+  `;
+}
+
+function renderNewInvoice() {
+  const client = state.draft.clientId ? state.clients[state.draft.clientId] : null;
+  const issued = todayISO();
+  const due = addDaysISO(issued, 30);
+  const amount = parseFloat(state.draft.amount) || 0;
+  const number = nextInvoiceNumber();
+
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="home">${ICON.back} Back</button>
+    </div>
+    <h1 class="view-title">New invoice</h1>
+    <p class="view-subtitle">${escapeHTML(number)} · Issued ${escapeHTML(formatDate(issued))} · Due ${escapeHTML(formatDate(due))}</p>
+
+    ${client ? `
+      <div class="selected-client">
+        <div class="selected-client-info">
+          <div class="selected-client-name">${escapeHTML(client.name)}</div>
+          ${client.address ? `<div class="selected-client-addr">${escapeHTML(client.address)}</div>` : '<div class="selected-client-addr" style="font-style:italic">No address saved — tap Edit to add one</div>'}
+        </div>
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <button class="selected-client-change" data-action="pick-client">Change</button>
+          <button class="selected-client-change" data-action="edit-client" data-id="${escapeHTML(client.id)}">Edit</button>
+        </div>
+      </div>
+    ` : `
+      <button class="row" data-action="pick-client" style="margin-bottom: 14px;">
+        <div class="row-main">
+          <div class="row-title">Choose client</div>
+          <div class="row-meta">Required</div>
+        </div>
+        <div class="row-trail">${ICON.chevron}</div>
+      </button>
+    `}
+
+    <form id="invoice-form" class="stack" autocomplete="off">
+      <div class="field">
+        <label class="field-label" for="amt">Amount</label>
+        <div class="field-amount">
+          <span class="currency">£</span>
+          <input id="amt" name="amount" type="text" inputmode="decimal" pattern="[0-9]*\\.?[0-9]*" placeholder="0.00" value="${escapeHTML(state.draft.amount)}" />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label" for="desc">Job summary</label>
+        <textarea id="desc" name="description" rows="2" autocapitalize="sentences" placeholder="e.g. Grass cut + waste removal">${escapeHTML(state.draft.description)}</textarea>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-row"><span>Invoice</span><span class="val" style="font-family: var(--font-mono); font-size: 13px;">${escapeHTML(number)}</span></div>
+        <div class="summary-row"><span>Issued</span><span class="val">${escapeHTML(formatDate(issued))}</span></div>
+        <div class="summary-row"><span>Due</span><span class="val">${escapeHTML(formatDate(due))}</span></div>
+        <div class="summary-row total"><span>Total</span><span class="val" id="summary-total">${formatGBP(amount)}</span></div>
+      </div>
+
+      <button type="submit" class="btn btn-primary" ${client ? '' : 'disabled'}>Generate invoice</button>
+    </form>
+  `;
+}
+
+function renderInvoiceView() {
+  const inv = state.invoices[state.view_invoice_number];
+  if (!inv) { go('home'); return ''; }
+  const co = state.company;
+
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="home">${ICON.back} Back</button>
+    </div>
+
+    <div class="preview-wrap" id="preview-card">
+      <div class="preview-head">
+        <div>
+          <div class="preview-co">${escapeHTML(co.name)}</div>
+          <div class="preview-contact">
+            ${escapeHTML(co.email)}<br/>
+            ${escapeHTML(co.phone)}
+          </div>
+        </div>
+        <div class="preview-right">
+          <div class="preview-eyebrow">Invoice</div>
+          <div class="preview-num">${escapeHTML(inv.number)}</div>
+          <div class="preview-dates">
+            <div><span class="lbl">Issued</span>${escapeHTML(formatDate(inv.dateIssued))}</div>
+            <div><span class="lbl">Due</span>${escapeHTML(formatDate(inv.dateDue))}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="preview-divider"></div>
+
+      <div class="preview-billto-label">Bill to</div>
+      <div class="preview-client-name">${escapeHTML(inv.clientName)}</div>
+      ${inv.clientAddress ? `<div class="preview-client-addr">${escapeHTML(inv.clientAddress)}</div>` : ''}
+
+      <div class="preview-divider"></div>
+
+      <div class="preview-table-head">
+        <span>Description</span>
+        <span>Amount</span>
+      </div>
+      <div class="preview-line">
+        <span class="preview-desc">${escapeHTML(inv.description)}</span>
+        <span class="preview-amount">${formatGBP(inv.amount)}</span>
+      </div>
+
+      <div class="preview-total">
+        <span>Total</span>
+        <span class="preview-amount">${formatGBP(inv.amount)}</span>
+      </div>
+
+      <div class="preview-pay">
+        <div class="preview-pay-label">Payment details</div>
+        <div class="preview-pay-row"><span class="k">Payable to</span><span class="v v-text">${escapeHTML(co.payableTo)}</span></div>
+        <div class="preview-pay-row"><span class="k">Sort code</span><span class="v">${escapeHTML(co.sortCode)}</span></div>
+        <div class="preview-pay-row"><span class="k">Account</span><span class="v">${escapeHTML(co.account)}</span></div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <button class="btn btn-primary" data-action="share-pdf" data-number="${escapeHTML(inv.number)}">Share PDF</button>
+      <button class="btn btn-secondary" data-action="download-pdf" data-number="${escapeHTML(inv.number)}">Open / download PDF</button>
+      <button class="btn btn-danger" data-action="delete-invoice" data-number="${escapeHTML(inv.number)}">Delete this invoice</button>
+    </div>
+  `;
+}
+
+function renderSettings() {
+  const co = state.company;
+  return `
+    <div class="back-bar">
+      <button class="back-btn" data-action="home">${ICON.back} Back</button>
+    </div>
+    <h1 class="view-title">Settings</h1>
+    <p class="view-subtitle">These details appear on every invoice you send.</p>
+
+    <form id="settings-form" autocomplete="off">
+      <div class="section">
+        <div class="section-head"><span class="section-label">Your business</span></div>
+        <div class="settings-group">
+          <div class="settings-field">
+            <label for="s-name">Business name</label>
+            <input id="s-name" name="name" type="text" value="${escapeHTML(co.name)}" />
+          </div>
+          <div class="settings-field">
+            <label for="s-email">Email</label>
+            <input id="s-email" name="email" type="email" inputmode="email" value="${escapeHTML(co.email)}" />
+          </div>
+          <div class="settings-field">
+            <label for="s-phone">Phone</label>
+            <input id="s-phone" name="phone" type="tel" inputmode="tel" value="${escapeHTML(co.phone)}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-head"><span class="section-label">Payment details</span></div>
+        <div class="settings-group">
+          <div class="settings-field">
+            <label for="s-payable">Payable to</label>
+            <input id="s-payable" name="payableTo" type="text" value="${escapeHTML(co.payableTo)}" />
+          </div>
+          <div class="settings-field">
+            <label for="s-sort">Sort code</label>
+            <input id="s-sort" name="sortCode" type="text" inputmode="numeric" value="${escapeHTML(co.sortCode)}" />
+          </div>
+          <div class="settings-field">
+            <label for="s-acc">Account number</label>
+            <input id="s-acc" name="account" type="text" inputmode="numeric" value="${escapeHTML(co.account)}" />
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <button type="submit" class="btn btn-primary">Save settings</button>
+        <button type="button" class="btn btn-danger" data-action="reset-app">Clear all data</button>
+      </div>
+    </form>
+  `;
+}
+
+/* ---------- Event wiring ---------- */
+
+function attachListeners() {
+  document.querySelectorAll('[data-action]').forEach(el => {
+    el.addEventListener('click', onAction);
+  });
+
+  const invForm = document.getElementById('invoice-form');
+  if (invForm) {
+    const amt = document.getElementById('amt');
+    const desc = document.getElementById('desc');
+    const total = document.getElementById('summary-total');
+    if (amt) amt.addEventListener('input', () => {
+      state.draft.amount = amt.value;
+      total.textContent = formatGBP(parseFloat(amt.value) || 0);
+    });
+    if (desc) desc.addEventListener('input', () => { state.draft.description = desc.value; });
+    invForm.addEventListener('submit', onSubmitInvoice);
+  }
+
+  const cForm = document.getElementById('client-form');
+  if (cForm) cForm.addEventListener('submit', onSubmitNewClient);
+
+  const ceForm = document.getElementById('client-edit-form');
+  if (ceForm) ceForm.addEventListener('submit', onSubmitEditClient);
+
+  const sForm = document.getElementById('settings-form');
+  if (sForm) sForm.addEventListener('submit', onSubmitSettings);
+}
+
+function onAction(e) {
+  const t = e.currentTarget;
+  const action = t.dataset.action;
+  switch (action) {
+    case 'home': go('home'); break;
+    case 'settings': go('settings'); break;
+    case 'new-invoice-pick':
+      go('pickClient', { resetDraft: true });
+      break;
+    case 'pick-client': go('pickClient'); break;
+    case 'add-client': go('newClient'); break;
+    case 'back-from-new-client':
+      if (state.draft.amount || state.draft.description || state.draft.clientId) go('newInvoice');
+      else go('home');
+      break;
+    case 'new-for-client': {
+      const id = t.dataset.id;
+      state.draft.clientId = id;
+      go('newInvoice');
+      break;
+    }
+    case 'edit-client': {
+      state.draft.editingClientId = t.dataset.id;
+      go('editClient');
+      break;
+    }
+    case 'delete-client': {
+      const id = t.dataset.id;
+      const c = state.clients[id];
+      if (!c) return;
+      if (!confirm(`Delete ${c.name}? Their saved address will be removed. Past invoices are kept.`)) return;
+      delete state.clients[id];
+      storageSet(STORAGE.clients, state.clients);
+      if (state.draft.clientId === id) state.draft.clientId = null;
+      toast('Client deleted');
+      go('home');
+      break;
+    }
+    case 'new-invoice': go('newInvoice'); break;
+    case 'view-invoice': go('invoiceView', { viewInvoiceNumber: t.dataset.number }); break;
+    case 'share-pdf':
+      handleSharePDF(t.dataset.number);
+      break;
+    case 'download-pdf':
+      handleDownloadPDF(t.dataset.number);
+      break;
+    case 'delete-invoice': {
+      const num = t.dataset.number;
+      if (!confirm(`Delete invoice ${num}? This cannot be undone.`)) return;
+      delete state.invoices[num];
+      storageSet(STORAGE.invoices, state.invoices);
+      toast('Invoice deleted');
+      go('home');
+      break;
+    }
+    case 'reset-app': {
+      if (!confirm('Clear ALL saved data — clients, invoices and settings? This cannot be undone.')) return;
+      [STORAGE.company, STORAGE.clients, STORAGE.invoices, STORAGE.counter, STORAGE.seeded].forEach(storageDelete);
+      state.company = { ...DEFAULT_COMPANY };
+      state.clients = {};
+      state.invoices = {};
+      state.counter = 1;
+      state.draft = { clientId: null, amount: '', description: '' };
+      storageSet(STORAGE.company, state.company);
+      toast('All data cleared');
+      go('home');
+      break;
+    }
+  }
+}
+
+function onSubmitNewClient(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const name = form.name.value.trim();
+  const address = form.address.value.trim();
+  const email = form.email.value.trim();
+  if (!name) { toast('Name required'); return; }
+  const id = uid();
+  state.clients[id] = { id, name, address, email, createdAt: Date.now() };
+  storageSet(STORAGE.clients, state.clients);
+  state.draft.clientId = id;
+  toast('Client saved');
+  go('newInvoice');
+}
+
+function onSubmitEditClient(e) {
+  e.preventDefault();
+  const form = e.currentTarget;
+  const id = state.draft.editingClientId;
+  const c = state.clients[id];
+  if (!c) { go('home'); return; }
+  c.name = form.name.value.trim();
+  c.address = form.address.value.trim();
+  c.email = form.email.value.trim();
+  storageSet(STORAGE.clients, state.clients);
+  toast('Client updated');
+  go('newInvoice');
+}
+
+function onSubmitInvoice(e) {
+  e.preventDefault();
+  if (!state.draft.clientId) { toast('Choose a client first'); return; }
+  const amount = parseFloat(state.draft.amount);
+  if (!isFinite(amount) || amount <= 0) { toast('Enter an amount'); return; }
+  const description = (state.draft.description || '').trim();
+  if (!description) { toast('Add a job summary'); return; }
+
+  const client = state.clients[state.draft.clientId];
+  const number = nextInvoiceNumber();
+  const dateIssued = todayISO();
+  const dateDue = addDaysISO(dateIssued, 30);
+
+  const inv = {
+    number,
+    clientId: client.id,
+    clientName: client.name,
+    clientAddress: client.address || '',
+    clientEmail: client.email || '',
+    amount,
+    description,
+    dateIssued,
+    dateDue,
+    createdAt: Date.now(),
+  };
+
+  state.invoices[number] = inv;
+  state.counter += 1;
+  storageSet(STORAGE.invoices, state.invoices);
+  storageSet(STORAGE.counter, state.counter);
+
+  state.draft = { clientId: null, amount: '', description: '' };
+  go('invoiceView', { viewInvoiceNumber: number });
+  toast('Invoice ready');
+}
+
+function onSubmitSettings(e) {
+  e.preventDefault();
+  const f = e.currentTarget;
+  state.company = {
+    name: f.name.value.trim() || DEFAULT_COMPANY.name,
+    email: f.email.value.trim(),
+    phone: f.phone.value.trim(),
+    payableTo: f.payableTo.value.trim(),
+    sortCode: f.sortCode.value.trim(),
+    account: f.account.value.trim(),
+  };
+  storageSet(STORAGE.company, state.company);
+  toast('Settings saved');
+  go('home');
+}
+
+/* ---------- PDF generation ---------- */
+
+function jspdfReady() {
+  return typeof window.jspdf !== 'undefined' && typeof window.jspdf.jsPDF !== 'undefined';
+}
+
+async function waitForJsPDF(timeoutMs = 8000) {
+  if (jspdfReady()) return true;
+  const start = Date.now();
+  return new Promise(resolve => {
+    const tick = () => {
+      if (jspdfReady()) return resolve(true);
+      if (Date.now() - start > timeoutMs) return resolve(false);
+      setTimeout(tick, 100);
+    };
+    tick();
+  });
+}
+
+function generateInvoicePDF(inv) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const co = state.company;
+
+  const M = 20;
+  const W = 210 - M * 2;
+  let y = M + 4;
+
+  const INK = [26, 26, 26];
+  const MUTED = [107, 107, 107];
+  const FAINT = [154, 154, 149];
+  const BORDER = [220, 218, 211];
+
+  // Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(...INK);
+  doc.text(co.name, M, y);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text('INVOICE', 210 - M, y - 5, { align: 'right', charSpace: 0.8 });
+
+  doc.setFont('courier', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...INK);
+  doc.text(inv.number, 210 - M, y, { align: 'right' });
+
+  y += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text(co.email, M, y);
+  y += 4;
+  doc.text(co.phone, M, y);
+
+  let yRight = y - 4;
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text('ISSUED', 210 - M - 28, yRight, { charSpace: 0.5 });
+  doc.text('DUE', 210 - M - 28, yRight + 5, { charSpace: 0.5 });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...INK);
+  doc.text(formatDate(inv.dateIssued), 210 - M, yRight, { align: 'right' });
+  doc.text(formatDate(inv.dateDue), 210 - M, yRight + 5, { align: 'right' });
+
+  y += 10;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.2);
+  doc.line(M, y, 210 - M, y);
+
+  // Bill to
+  y += 9;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text('BILL TO', M, y, { charSpace: 0.8 });
+
+  y += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.setTextColor(...INK);
+  doc.text(inv.clientName, M, y);
+
+  if (inv.clientAddress) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(...MUTED);
+    const lines = inv.clientAddress.split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      y += 5;
+      doc.text(line, M, y);
+    }
+  }
+
+  y += 10;
+  doc.setDrawColor(...BORDER);
+  doc.line(M, y, 210 - M, y);
+
+  // Line items
+  y += 9;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text('DESCRIPTION', M, y, { charSpace: 0.6 });
+  doc.text('AMOUNT', 210 - M, y, { align: 'right', charSpace: 0.6 });
+
+  y += 7;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(...INK);
+  const descLines = doc.splitTextToSize(inv.description, W - 40);
+  doc.text(descLines, M, y);
+  doc.text(formatGBP(inv.amount), 210 - M, y, { align: 'right' });
+  y += (descLines.length - 1) * 5;
+
+  // Total
+  y += 10;
+  doc.setDrawColor(...INK);
+  doc.setLineWidth(0.4);
+  doc.line(M, y, 210 - M, y);
+  y += 8;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...INK);
+  doc.text('Total', M, y);
+  doc.text(formatGBP(inv.amount), 210 - M, y, { align: 'right' });
+
+  // Payment details box
+  y += 14;
+  const boxH = 32;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.2);
+  doc.setFillColor(250, 250, 247);
+  doc.roundedRect(M, y, W, boxH, 2, 2, 'FD');
+
+  let by = y + 7;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text('PAYMENT DETAILS', M + 5, by, { charSpace: 0.8 });
+
+  by += 6;
+  const lblX = M + 5;
+  const valX = M + 33;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(...MUTED);
+  doc.text('Payable to', lblX, by);
+  doc.text('Sort code', lblX, by + 6);
+  doc.text('Account', lblX, by + 12);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...INK);
+  doc.text(co.payableTo, valX, by);
+  doc.setFont('courier', 'bold');
+  doc.text(co.sortCode, valX, by + 6);
+  doc.text(co.account, valX, by + 12);
+
+  // Footer
+  const footY = 297 - 16;
+  doc.setDrawColor(...BORDER);
+  doc.setLineWidth(0.2);
+  doc.line(M, footY - 6, 210 - M, footY - 6);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...FAINT);
+  doc.text(`${co.name}  ·  ${co.email}  ·  ${co.phone}`, 210 / 2, footY, { align: 'center' });
+
+  return doc;
+}
+
+function pdfFilename(inv) {
+  const safeName = inv.clientName.replace(/[^a-zA-Z0-9-_]+/g, '_').replace(/^_|_$/g, '');
+  return `${inv.number}_${safeName}.pdf`;
+}
+
+async function handleSharePDF(number) {
+  const inv = state.invoices[number];
+  if (!inv) return;
+  toast('Preparing PDF…');
+  const ready = await waitForJsPDF();
+  if (!ready) { toast('PDF library failed to load. Check connection and try again.'); return; }
+
+  const doc = generateInvoicePDF(inv);
+  const blob = doc.output('blob');
+  const filename = pdfFilename(inv);
+  const file = new File([blob], filename, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: filename });
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return;
+    }
+  }
+  triggerDownload(blob, filename);
+  toast('Sharing not available — opened the PDF instead');
+}
+
+async function handleDownloadPDF(number) {
+  const inv = state.invoices[number];
+  if (!inv) return;
+  toast('Preparing PDF…');
+  const ready = await waitForJsPDF();
+  if (!ready) { toast('PDF library failed to load. Check connection and try again.'); return; }
+
+  const doc = generateInvoicePDF(inv);
+  const blob = doc.output('blob');
+  const filename = pdfFilename(inv);
+  triggerDownload(blob, filename);
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, 60000);
+}
+
+/* ---------- Boot ---------- */
+
+try {
+  loadAll();
+} catch (e) {
+  console.error('Load failed', e);
+}
+render();
+</script>
+</body>
+</html>
