@@ -1280,10 +1280,11 @@ function generateInvoicePDF(inv) {
   doc.text(co.phone, M, y);
 
   let yRight = y - 4;
-  doc.setFontSize(8);
-  doc.setTextColor(...FAINT);
-  doc.text('ISSUED', 210 - M - 48, yRight, { charSpace: 0.5 });
-  doc.text('DUE', 210 - M - 48, yRight + 5, { charSpace: 0.5 });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...MUTED);
+  doc.text('Issued', 210 - M - 32, yRight, { align: 'right' });
+  doc.text('Due', 210 - M - 32, yRight + 5, { align: 'right' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...INK);
