@@ -1282,8 +1282,8 @@ function generateInvoicePDF(inv) {
   let yRight = y - 4;
   doc.setFontSize(8);
   doc.setTextColor(...FAINT);
-  doc.text('ISSUED', 210 - M - 28, yRight, { charSpace: 0.5 });
-  doc.text('DUE', 210 - M - 28, yRight + 5, { charSpace: 0.5 });
+  doc.text('ISSUED', 210 - M - 48, yRight, { charSpace: 0.5 });
+  doc.text('DUE', 210 - M - 48, yRight + 5, { charSpace: 0.5 });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.setTextColor(...INK);
